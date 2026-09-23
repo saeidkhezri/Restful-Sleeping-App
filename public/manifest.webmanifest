@@ -1,0 +1,20 @@
+{
+  "name": "نگهبان خواب · Dream Guardian",
+  "short_name": "نگهبان خواب",
+  "description": "نگهبان هوشمند خواب — با شنیدن تن صدای شما هنگام کابوس، هشدار و لرزش فعال می‌شود تا بیدار شوید.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "dir": "rtl",
+  "lang": "fa",
+  "background_color": "#06060f",
+  "theme_color": "#06060f",
+  "categories": ["health", "lifestyle", "utilities"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
