@@ -1,5 +1,5 @@
 /* Dream Guardian — offline service worker */
-const CACHE = "dreamguardian-v1";
+const CACHE = "dreamguardian-v2";
 const PRECACHE = [
   "/",
   "/index.html",

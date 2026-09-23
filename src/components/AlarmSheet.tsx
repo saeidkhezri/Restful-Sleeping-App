@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Check, FileAudio, FolderOpen, Music4, Pause, Play, X } from "lucide-react";
+import { Check, FileAudio, FolderOpen, Music4, Pause, Play, Trash2, X } from "lucide-react";
 import { ALARM_IDS, dictionaries, type Lang } from "../i18n";
 import { AlarmController, tapHaptic } from "../lib/audioEngine";
 
 export interface CustomAlarm {
+  id: string;
   name: string;
   dataUrl: string;
 }
@@ -12,20 +13,25 @@ export interface CustomAlarm {
 export default function AlarmSheet({
   lang,
   alarmId,
-  customAlarm,
+  customAlarms,
+  alarmVolume,
   onSelect,
-  onCustomFile,
+  onAdd,
+  onRemove,
   onClose,
 }: {
   lang: Lang;
-  alarmId: string;
-  customAlarm: CustomAlarm | null;
+  alarmId: string; // preset id or "custom:<id>"
+  customAlarms: CustomAlarm[];
+  alarmVolume: number;
   onSelect: (id: string) => void;
-  onCustomFile: (f: CustomAlarm | null) => void;
+  onAdd: (f: Omit<CustomAlarm, "id">) => boolean; // returns false when too big
+  onRemove: (id: string) => void;
   onClose: () => void;
 }) {
   const t = dictionaries[lang];
   const [previewing, setPreviewing] = useState<string | null>(null);
+  const [fileError, setFileError] = useState(false);
   const playerRef = useRef(new AlarmController());
   const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -38,18 +44,18 @@ export default function AlarmSheet({
     };
   }, []);
 
-  const preview = (id: string, dataUrl?: string) => {
+  const preview = (key: string, dataUrl?: string) => {
     tapHaptic();
     const player = playerRef.current;
-    if (previewing === id) {
+    if (previewing === key) {
       player.stop();
       if (stopTimerRef.current) clearTimeout(stopTimerRef.current);
       setPreviewing(null);
       return;
     }
     player.stop();
-    player.start(id, dataUrl);
-    setPreviewing(id);
+    player.start(key, dataUrl, { volume: alarmVolume, riseSec: 0 });
+    setPreviewing(key);
     if (stopTimerRef.current) clearTimeout(stopTimerRef.current);
     stopTimerRef.current = setTimeout(() => {
       player.stop();
@@ -68,24 +74,17 @@ export default function AlarmSheet({
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = String(reader.result);
-      // keep localStorage safe — accept up to ~3.5MB
       if (dataUrl.length > 4_700_000) {
-        onCustomFile({ name: file.name, dataUrl: "" });
+        setFileError(true);
         return;
       }
-      onCustomFile({ name: file.name, dataUrl });
-      onSelect("custom");
+      setFileError(false);
+      const ok = onAdd({ name: file.name, dataUrl });
+      if (!ok) setFileError(true);
     };
     reader.readAsDataURL(file);
     e.target.value = "";
   };
-
-  const rows = ALARM_IDS.map((id, i) => ({
-    id,
-    name: t.alarmNames[id],
-    icon: Music4,
-    tone: ["teal", "gold", "rose", "violet", "teal"][i],
-  }));
 
   return (
     <>
@@ -101,7 +100,7 @@ export default function AlarmSheet({
         animate={{ y: 0 }}
         exit={{ y: "100%" }}
         transition={{ type: "spring", stiffness: 320, damping: 34 }}
-        className="absolute inset-x-0 bottom-0 z-50 rounded-t-[32px] border-t border-white/12 bg-night-900/95 p-6 pb-9 backdrop-blur-2xl"
+        className="absolute inset-x-0 bottom-0 z-50 max-h-[86%] overflow-y-auto rounded-t-[32px] border-t border-white/12 bg-night-900/95 p-6 pb-9 backdrop-blur-2xl no-scrollbar"
       >
         <div className="mx-auto mb-5 h-1.5 w-12 rounded-full bg-white/20" />
         <div className="mb-1 flex items-start justify-between">
@@ -121,42 +120,58 @@ export default function AlarmSheet({
           </button>
         </div>
 
-        {/* custom file */}
+        {/* add from storage */}
         <button
           onClick={() => fileRef.current?.click()}
-          className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-dashed border-teal-300/30 bg-teal-400/8 px-4 py-3.5 text-start active:scale-[0.98]"
+          className="mb-2 flex w-full items-center gap-3 rounded-2xl border border-dashed border-teal-300/30 bg-teal-400/8 px-4 py-3.5 text-start active:scale-[0.98]"
         >
           <FolderOpen className="size-5 text-teal-200" strokeWidth={1.8} />
           <div className="min-w-0 flex-1">
             <div className="text-sm font-bold text-teal-100">{t.customFromPhone}</div>
             <div className="text-[10px] text-white/45">{t.pickAudioHint}</div>
           </div>
-          {customAlarm && alarmId === "custom" && <Check className="size-4 text-teal-300" />}
         </button>
         <input ref={fileRef} type="file" accept="audio/*" onChange={onFile} />
+        {fileError && <p className="mb-2 text-[10px] font-semibold text-rose-300">{t.fileTooBig}</p>}
 
-        {customAlarm && (
-          <RowButton
-            selected={alarmId === "custom"}
-            name={customAlarm.name || t.myFile}
-            icon={<FileAudio className="size-5 text-teal-200" strokeWidth={1.8} />}
-            previewing={previewing === "custom"}
-            onPick={() => customAlarm.dataUrl && pick("custom")}
-            onPreview={() => customAlarm.dataUrl && preview("custom", customAlarm.dataUrl)}
-            disabled={!customAlarm.dataUrl}
-          />
+        {/* my library */}
+        <div className="mb-1.5 mt-3 flex items-center gap-2 text-[11px] font-bold text-white/45">
+          <FileAudio className="size-3.5" />
+          {t.myLibrary}
+        </div>
+        {customAlarms.length === 0 ? (
+          <p className="mb-3 rounded-xl border border-white/8 bg-white/4 px-4 py-3 text-[11px] text-white/40">
+            {t.libraryEmpty}
+          </p>
+        ) : (
+          <div className="mb-3 flex flex-col gap-2">
+            {customAlarms.map((c) => (
+              <RowButton
+                key={c.id}
+                selected={alarmId === `custom:${c.id}`}
+                name={c.name || t.myFile}
+                previewing={previewing === `custom:${c.id}`}
+                onPick={() => pick(`custom:${c.id}`)}
+                onPreview={() => preview(`custom:${c.id}`, c.dataUrl)}
+                onDelete={() => {
+                  tapHaptic();
+                  onRemove(c.id);
+                }}
+              />
+            ))}
+          </div>
         )}
 
-        <div className="flex max-h-72 flex-col gap-2 overflow-y-auto pe-1 no-scrollbar">
-          {rows.map((r) => (
+        {/* built-in presets */}
+        <div className="flex max-h-64 flex-col gap-2 overflow-y-auto pe-1 no-scrollbar">
+          {ALARM_IDS.map((id) => (
             <RowButton
-              key={r.id}
-              selected={alarmId === r.id}
-              name={r.name}
-              icon={<r.icon className="size-5 text-white/70" strokeWidth={1.8} />}
-              previewing={previewing === r.id}
-              onPick={() => pick(r.id)}
-              onPreview={() => preview(r.id)}
+              key={id}
+              selected={alarmId === id}
+              name={t.alarmNames[id]}
+              previewing={previewing === id}
+              onPick={() => pick(id)}
+              onPreview={() => preview(id)}
             />
           ))}
         </div>
@@ -168,29 +183,26 @@ export default function AlarmSheet({
 function RowButton({
   selected,
   name,
-  icon,
   previewing,
   onPick,
   onPreview,
-  disabled,
+  onDelete,
 }: {
   selected: boolean;
   name: string;
-  icon: React.ReactNode;
   previewing: boolean;
   onPick: () => void;
   onPreview: () => void;
-  disabled?: boolean;
+  onDelete?: () => void;
 }) {
   return (
     <div
       className={`flex items-center gap-3 rounded-2xl border px-4 py-3 transition-colors ${
         selected ? "border-teal-300/40 bg-teal-400/12" : "border-white/8 bg-white/4"
-      } ${disabled ? "opacity-40" : ""}`}
+      }`}
     >
       <button
         onClick={onPreview}
-        disabled={disabled}
         className={`grid size-10 shrink-0 place-items-center rounded-full border transition ${
           previewing
             ? "border-teal-300/60 bg-teal-300 text-night-950 shadow-[0_0_18px_rgba(94,234,212,.55)]"
@@ -200,8 +212,8 @@ function RowButton({
       >
         {previewing ? <Pause className="size-4.5" /> : <Play className="size-4.5 -me-0.5" />}
       </button>
-      <button onClick={onPick} disabled={disabled} className="flex min-w-0 flex-1 items-center gap-3 text-start">
-        {icon}
+      <button onClick={onPick} className="flex min-w-0 flex-1 items-center gap-3 text-start">
+        <Music4 className="size-5 shrink-0 text-white/60" strokeWidth={1.8} />
         <span className="flex-1 truncate text-sm font-bold text-white/90">{name}</span>
         <span
           className={`grid size-5.5 shrink-0 place-items-center rounded-full border transition ${
@@ -211,6 +223,15 @@ function RowButton({
           {selected && <Check className="size-3.5" strokeWidth={3} />}
         </span>
       </button>
+      {onDelete && (
+        <button
+          onClick={onDelete}
+          className="grid size-8 shrink-0 place-items-center rounded-full text-rose-300/70 active:scale-90"
+          aria-label="delete"
+        >
+          <Trash2 className="size-4" />
+        </button>
+      )}
     </div>
   );
 }

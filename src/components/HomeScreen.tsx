@@ -13,7 +13,7 @@ import {
   Power,
   Vibrate,
 } from "lucide-react";
-import { ALARM_IDS, DEDICATION, dictionaries, type Lang } from "../i18n";
+import { ALARM_IDS, dictionaries, type Lang } from "../i18n";
 import type { CustomAlarm } from "./AlarmSheet";
 import type { VoiceFingerprint } from "../lib/audioEngine";
 import { tapHaptic } from "../lib/audioEngine";
@@ -25,7 +25,7 @@ export default function HomeScreen({
   sentenceFp,
   humFp,
   alarmId,
-  customAlarm,
+  customAlarms,
   vibrate,
   onOpenRecord,
   onOpenSheet,
@@ -38,7 +38,7 @@ export default function HomeScreen({
   sentenceFp: VoiceFingerprint | null;
   humFp: VoiceFingerprint | null;
   alarmId: string;
-  customAlarm: CustomAlarm | null;
+  customAlarms: CustomAlarm[];
   vibrate: boolean;
   onOpenRecord: () => void;
   onOpenSheet: () => void;
@@ -48,13 +48,11 @@ export default function HomeScreen({
 }) {
   const t = dictionaries[lang];
   const hasVoice = !!sentenceFp && !!humFp;
-  const alarmName =
-    alarmId === "custom"
-      ? customAlarm?.name || t.myFile
-      : t.alarmNames[(alarmId as (typeof ALARM_IDS)[number]) || "dawn"] ?? t.alarmNames.dawn;
+  const custom = alarmId.startsWith("custom:") ? customAlarms.find((c) => `custom:${c.id}` === alarmId) : null;
+  const alarmName = custom ? custom.name || t.myFile : t.alarmNames[(alarmId as (typeof ALARM_IDS)[number])] ?? t.alarmNames.dawn;
 
   return (
-    <div className="no-scrollbar relative h-full overflow-y-auto px-5 pb-8 pt-6">
+    <div className="no-scrollbar relative h-full overflow-y-auto px-5 pb-32 pt-6">
       {/* ─── header ─── */}
       <motion.div
         initial={{ opacity: 0, y: -14 }}
@@ -62,14 +60,11 @@ export default function HomeScreen({
         transition={{ duration: 0.6 }}
         className="flex items-center gap-3"
       >
-        <div className="relative">
-          <MoonStar className="size-8 text-teal-200 drop-shadow-[0_0_14px_rgba(94,234,212,.6)]" strokeWidth={1.5} />
-        </div>
-        <div className="flex-1">
-          <div className="text-[16px] font-extrabold leading-tight text-white">{t.brand}</div>
+        <MoonStar className="size-8 shrink-0 text-teal-200 drop-shadow-[0_0_14px_rgba(94,234,212,.6)]" strokeWidth={1.5} />
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[15px] font-extrabold leading-tight text-white">{t.brand}</div>
           <div className="text-[10px] text-white/45">{t.tagline}</div>
         </div>
-        {/* language pill */}
         <button
           onClick={() => {
             tapHaptic();
@@ -83,17 +78,17 @@ export default function HomeScreen({
         </button>
       </motion.div>
 
-      {/* ─── dedication (required credit) ─── */}
+      {/* ─── dedication (bilingual) ─── */}
       <motion.p
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.35, duration: 0.8 }}
-        className="font-en mt-5 rounded-2xl border border-amber-200/15 bg-amber-100/5 px-5 py-3.5 text-center text-[11px] font-medium leading-relaxed tracking-wide text-amber-100/85"
-        dir="ltr"
+        className="mt-5 rounded-2xl border border-amber-200/15 bg-amber-100/5 px-5 py-3.5 text-center text-[11px] font-medium leading-relaxed tracking-wide text-amber-100/85"
+        dir={lang === "fa" ? "rtl" : "ltr"}
       >
-        <Heart className="mb-1 inline size-3.5 text-rose-300" fill="currentColor" />
+        <Heart className="inline size-3.5 text-rose-300" fill="currentColor" />
         <br />
-        <span className="gold-gradient-text">{DEDICATION}</span>
+        <span className="gold-gradient-text">{t.dedication}</span>
       </motion.p>
 
       {/* ─── status ─── */}
@@ -103,7 +98,7 @@ export default function HomeScreen({
         transition={{ delay: 0.15, duration: 0.6 }}
         className="mt-5"
       >
-        <GlassCard className="relative flex items-center gap-4 overflow-hidden">
+        <div className="glass relative flex items-center gap-4 overflow-hidden rounded-3xl p-5">
           <img
             src="/images/moon.png"
             alt=""
@@ -121,7 +116,7 @@ export default function HomeScreen({
           <span className={`text-sm font-extrabold ${hasVoice ? "text-teal-100" : "text-amber-100"}`}>
             {hasVoice ? t.statusReady : t.statusSetup}
           </span>
-        </GlassCard>
+        </div>
       </motion.div>
 
       {/* ─── voice tone card ─── */}

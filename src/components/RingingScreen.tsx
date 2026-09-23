@@ -4,27 +4,38 @@ import { BellRing, Hand, Vibrate } from "lucide-react";
 import { dictionaries, type Lang } from "../i18n";
 import { AlarmController } from "../lib/audioEngine";
 
+export interface AlarmBehavior {
+  volume: number; // final volume 0..1
+  rise: boolean;
+  riseSec: number;
+}
+
 export default function RingingScreen({
   lang,
   alarmId,
   customDataUrl,
   vibrate,
+  behavior,
   onDismiss,
 }: {
   lang: Lang;
   alarmId: string;
   customDataUrl: string | null;
   vibrate: boolean;
+  behavior: AlarmBehavior;
   onDismiss: () => void;
 }) {
   const t = dictionaries[lang];
   const playerRef = useRef<AlarmController | null>(null);
 
   useEffect(() => {
-    // sound — maximum effort, loops forever until dismissed
+    // sound — loops forever until dismissed; optionally rises gently to the final volume
     const player = new AlarmController();
     playerRef.current = player;
-    player.start(alarmId, customDataUrl);
+    player.start(alarmId, customDataUrl, {
+      volume: behavior.volume,
+      riseSec: behavior.rise ? behavior.riseSec : 0,
+    });
 
     // vibration — relentless pattern
     let vibTimer: ReturnType<typeof setInterval> | null = null;

@@ -1,26 +1,34 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { BellRing, Ear, MoonStar, OctagonX, Volume2 } from "lucide-react";
+import { BellRing, Ear, MoonStar, OctagonX, Volume2, Waves } from "lucide-react";
 import { dictionaries, digits, type Lang } from "../i18n";
 import { frameMatchScore, median, tapHaptic, VoiceSession, type VoiceFingerprint } from "../lib/audioEngine";
 import { cn } from "../utils/cn";
 
 const TICK = 55;
 const CALIB_MS = 2300;
-const WINDOW_FRAMES = 34; // ~1.9s
-const NEED_FRAMES = 11; // matched frames to trigger
+const EVENT_WINDOW_MS = 12000;
 const BARS = 24;
+const GAP_TOLERANCE_MS = 500;
+
+export interface DetectionSettings {
+  sensitivity: number; // 1..10
+  minHumCount: number; // 1..5
+  minHumDurMs: number; // 300..2000
+}
 
 export default function MonitorScreen({
   lang,
   fingerprints,
   alarmName,
+  settings,
   onAlarm,
   onStop,
 }: {
   lang: Lang;
   fingerprints: VoiceFingerprint[];
   alarmName: string;
+  settings: DetectionSettings;
   onAlarm: () => void;
   onStop: () => void;
 }) {
@@ -30,14 +38,20 @@ export default function MonitorScreen({
   const [level, setLevel] = useState(0);
   const [bars, setBars] = useState<number[]>(Array(BARS).fill(0.08));
   const [heard, setHeard] = useState(false);
-  const [matchPct, setMatchPct] = useState(0);
+  const [humCount, setHumCount] = useState(0);
+  const [humProgress, setHumProgress] = useState(0);
   const [dead, setDead] = useState(false);
 
   const sessionRef = useRef<VoiceSession | null>(null);
   const ambientRef = useRef(0.015);
-  const windowRef = useRef<number[]>([]);
   const calibRmsRef = useRef<number[]>([]);
   const liveUntilRef = useRef(0);
+  const segActiveRef = useRef(false);
+  const segStartRef = useRef(0);
+  const lastActiveRef = useRef(0);
+  const humsRef = useRef<number[]>([]);
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
 
   useEffect(() => {
     let cancelled = false;
@@ -60,12 +74,12 @@ export default function MonitorScreen({
 
       interval = setInterval(() => {
         const now = performance.now();
+        const { sensitivity, minHumCount, minHumDurMs } = settingsRef.current;
         const f = session.sample();
         const lvl = session.level();
         setLevel(lvl);
         setBars((prev) => [...prev.slice(1), 0.08 + Math.min(0.92, lvl * 1.35)]);
 
-        // calibration phase
         if (now - startedAt < CALIB_MS) {
           calibRmsRef.current.push(f.rms);
           setCalibPct(Math.min(100, ((now - startedAt) / CALIB_MS) * 100));
@@ -73,23 +87,46 @@ export default function MonitorScreen({
         }
         if (calibRmsRef.current.length) {
           const amb = median(calibRmsRef.current);
-          ambientRef.current = Math.max(amb * 2.6, 0.016);
+          // higher sensitivity → lower required loudness above room noise
+          const factor = 3.0 - ((sensitivity - 1) / 9) * 1.9;
+          ambientRef.current = Math.max(amb * factor, 0.013);
           calibRmsRef.current = [];
-          liveUntilRef.current = now + 1500; // settle grace
+          liveUntilRef.current = now + 1500;
           setCalibrating(false);
         }
         if (now < liveUntilRef.current) return;
 
+        // higher sensitivity → easier score acceptance
+        const scoreThresh = 0.8 - ((sensitivity - 1) / 9) * 0.25;
         const score = frameMatchScore(f, fingerprints, ambientRef.current);
-        const w = windowRef.current;
-        w.push(score >= 0.75 ? 1 : score >= 0.45 ? 0.4 : 0);
-        if (w.length > WINDOW_FRAMES) w.shift();
-        const matched = w.reduce((s, x) => s + x, 0);
-        setMatchPct(Math.min(1, matched / NEED_FRAMES));
-        const isHeard = score >= 0.75;
-        setHeard((prev) => (prev === isHeard ? prev : isHeard));
+        const active = score >= scoreThresh;
+        setHeard((prev) => (prev === active ? prev : active));
 
-        if (matched >= NEED_FRAMES) {
+        // ── hum-segment tracking (min duration × min count within a window) ──
+        if (active) {
+          if (!segActiveRef.current) {
+            segActiveRef.current = true;
+            segStartRef.current = f.t;
+          }
+          lastActiveRef.current = f.t;
+          const dur = f.t - segStartRef.current;
+          setHumProgress(Math.min(1, dur / minHumDurMs));
+        } else if (segActiveRef.current && f.t - lastActiveRef.current > GAP_TOLERANCE_MS) {
+          const dur = lastActiveRef.current - segStartRef.current;
+          if (dur >= minHumDurMs) {
+            humsRef.current.push(lastActiveRef.current);
+            setHumCount(humsRef.current.length);
+          }
+          segActiveRef.current = false;
+          setHumProgress(0);
+        }
+
+        // drop expired hum events
+        const before = humsRef.current.length;
+        humsRef.current = humsRef.current.filter((ts) => now - ts < EVENT_WINDOW_MS);
+        if (humsRef.current.length !== before) setHumCount(humsRef.current.length);
+
+        if (humsRef.current.length >= minHumCount) {
           tapHaptic();
           cleanup();
           onAlarm();
@@ -110,7 +147,6 @@ export default function MonitorScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ring gauge for level
   const C = 2 * Math.PI * 78;
 
   return (
@@ -131,15 +167,16 @@ export default function MonitorScreen({
             {calibrating ? t.calibrating : t.listening}
           </span>
         </div>
-        <div className="text-[10px] font-semibold tracking-widest text-white/35">{t.brand}</div>
+        <div className="flex items-center gap-1.5 text-[10px] font-semibold tracking-widest text-white/35">
+          <Waves className="size-3" />
+          {t.sensLabel} {digits(settings.sensitivity, lang)}
+        </div>
       </div>
 
       {/* center visual */}
       <div className="flex flex-1 flex-col items-center justify-center px-8">
         <div className="relative grid size-72 place-items-center">
-          {/* breathing halo */}
           <div className="absolute inset-4 rounded-full bg-violet-500/15 blur-2xl animate-breathe" />
-          {/* rotating ticks */}
           <svg className="absolute inset-0 size-full animate-spin-slower" viewBox="0 0 200 200">
             <circle cx="100" cy="100" r="92" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1" strokeDasharray="2 13" />
             <circle cx="100" cy="100" r="96" fill="none" stroke="rgba(94,234,212,0.25)" strokeWidth="1" strokeDasharray="1 24" />
@@ -218,18 +255,39 @@ export default function MonitorScreen({
           )}
         </div>
 
-        {/* match meter */}
-        <div className="mt-2 w-full max-w-60">
-          <div className="h-1.5 overflow-hidden rounded-full bg-white/8">
-            <div
-              className={cn(
-                "h-full rounded-full transition-all duration-150",
-                matchPct > 0.6 ? "bg-gradient-to-r from-amber-300 to-rose-400 shadow-[0_0_12px_rgba(251,113,133,.7)]" : "bg-teal-300/70",
-              )}
-              style={{ width: `${matchPct * 100}%` }}
-            />
+        {/* hum counter dots */}
+        <div className="mt-2 flex flex-col items-center">
+          <div className="flex items-center gap-2.5">
+            {Array.from({ length: settings.minHumCount }).map((_, i) => {
+              const filled = i < humCount;
+              const growing = i === humCount;
+              return (
+                <span
+                  key={i}
+                  className={cn(
+                    "grid place-items-center rounded-full border transition-all duration-300",
+                    filled
+                      ? "size-4 border-amber-300 bg-amber-300/90 shadow-[0_0_14px_rgba(252,217,160,.8)]"
+                      : "size-4 border-white/25 bg-white/5",
+                  )}
+                >
+                  {growing && humProgress > 0 && (
+                    <span
+                      className="rounded-full bg-gradient-to-br from-teal-300 to-amber-200 transition-all duration-100"
+                      style={{ width: `${4 + humProgress * 10}px`, height: `${4 + humProgress * 10}px` }}
+                    />
+                  )}
+                </span>
+              );
+            })}
           </div>
-          <div className="mt-2 flex items-center justify-between text-[10px] text-white/40">
+          <p className="mt-2 text-[10px] font-bold text-white/45">
+            {t.humsOf(Math.min(humCount, settings.minHumCount), settings.minHumCount)}
+          </p>
+        </div>
+
+        <div className="mt-3 w-full max-w-60">
+          <div className="flex items-center justify-between text-[10px] text-white/40">
             <span className="flex items-center gap-1">
               <Volume2 className="size-3" />
               {t.levelLabel}
@@ -240,7 +298,7 @@ export default function MonitorScreen({
           </div>
         </div>
 
-        <p className="mt-7 max-w-[32ch] text-center text-[11px] leading-relaxed text-white/45">{t.monDesc}</p>
+        <p className="mt-5 max-w-[32ch] text-center text-[11px] leading-relaxed text-white/45">{t.monDesc}</p>
       </div>
 
       {/* footer controls */}

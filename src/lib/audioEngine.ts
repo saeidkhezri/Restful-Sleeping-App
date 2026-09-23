@@ -272,6 +272,11 @@ const PRESETS: Record<AlarmId, AlarmNote[]> = {
   ],
 };
 
+export interface AlarmPlayOptions {
+  volume?: number; // final volume 0..1 (default 1)
+  riseSec?: number; // seconds to climb from near-silence to final volume (0 = instant)
+}
+
 export class AlarmSynth {
   private ctx: AudioContext | null = null;
   private out: GainNode | null = null;
@@ -280,18 +285,26 @@ export class AlarmSynth {
   private idx = 0;
   private activePreset: AlarmId = "dawn";
 
-  start(preset: AlarmId): void {
+  start(preset: AlarmId, opts: AlarmPlayOptions = {}): void {
     this.stop();
     const AC: typeof AudioContext =
       window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     this.ctx = new AC();
     void this.ctx.resume();
     this.out = this.ctx.createGain();
-    this.out.gain.value = 1.0;
+    const target = opts.volume ?? 1;
+    const rise = opts.riseSec ?? 0;
+    const now = this.ctx.currentTime;
+    if (rise > 0) {
+      this.out.gain.setValueAtTime(0.03, now);
+      this.out.gain.linearRampToValueAtTime(target, now + rise);
+    } else {
+      this.out.gain.setValueAtTime(target, now);
+    }
     this.out.connect(this.ctx.destination);
     this.activePreset = preset;
     this.idx = 0;
-    this.nextTime = this.ctx.currentTime + 0.05;
+    this.nextTime = now + 0.05;
     this.timer = setInterval(() => this.tick(), 120);
     this.tick();
   }
@@ -346,16 +359,36 @@ export class AlarmSynth {
 
 export class FileAlarmPlayer {
   private el: HTMLAudioElement | null = null;
+  private riseTimer: ReturnType<typeof setInterval> | null = null;
 
-  start(src: string): void {
+  start(src: string, opts: AlarmPlayOptions = {}): void {
     this.stop();
-    this.el = new Audio(src);
-    this.el.loop = true;
-    this.el.volume = 1;
-    void this.el.play().catch(() => undefined);
+    const el = new Audio(src);
+    this.el = el;
+    el.loop = true;
+    const target = opts.volume ?? 1;
+    const rise = opts.riseSec ?? 0;
+    if (rise > 0) {
+      el.volume = 0.05;
+      const steps = Math.ceil((rise * 1000) / 250);
+      let i = 0;
+      this.riseTimer = setInterval(() => {
+        i++;
+        el.volume = Math.min(target, 0.05 + ((target - 0.05) * i) / steps);
+        if (i >= steps && this.riseTimer) {
+          clearInterval(this.riseTimer);
+          this.riseTimer = null;
+        }
+      }, 250);
+    } else {
+      el.volume = target;
+    }
+    void el.play().catch(() => undefined);
   }
 
   stop(): void {
+    if (this.riseTimer) clearInterval(this.riseTimer);
+    this.riseTimer = null;
     if (this.el) {
       this.el.pause();
       this.el.src = "";
@@ -370,14 +403,17 @@ export class AlarmController {
   private synth = new AlarmSynth();
   private file = new FileAlarmPlayer();
 
-  start(alarmId: string, customDataUrl?: string | null): void {
-    if (alarmId === "custom" && customDataUrl) {
+  start(alarmId: string, customDataUrl?: string | null, opts: AlarmPlayOptions = {}): void {
+    if (alarmId.startsWith("custom:") && customDataUrl) {
       this.synth.stop();
-      this.file.start(customDataUrl);
-    } else {
-      this.file.stop();
-      this.synth.start((alarmId as AlarmId) || "dawn");
+      this.file.start(customDataUrl, opts);
+      return;
     }
+    this.file.stop();
+    const preset: AlarmId = ["dawn", "bell", "pulse", "moon", "meteor"].includes(alarmId)
+      ? (alarmId as AlarmId)
+      : "dawn";
+    this.synth.start(preset, opts);
   }
 
   stop(): void {
