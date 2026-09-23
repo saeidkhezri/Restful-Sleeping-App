@@ -1,0 +1,81 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Background gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0a1a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1a1a3a;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Moon gradient -->
+    <linearGradient id="moonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fde8c8;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#fcd9a0;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d9b380;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Wave gradient -->
+    <linearGradient id="waveGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#5eead4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2dd4bf;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Glow filter -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- Soft glow for moon -->
+    <filter id="moonGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="12" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background rounded square -->
+  <rect x="0" y="0" width="512" height="512" rx="102" fill="url(#bgGrad)"/>
+  
+  <!-- Subtle stars -->
+  <circle cx="85" cy="95" r="2.5" fill="#ffffff" opacity="0.4">
+    <animate attributeName="opacity" values="0.4;0.7;0.4" dur="3s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="420" cy="110" r="2" fill="#ffffff" opacity="0.35">
+    <animate attributeName="opacity" values="0.35;0.6;0.35" dur="4s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="390" cy="380" r="2" fill="#ffffff" opacity="0.3">
+    <animate attributeName="opacity" values="0.3;0.5;0.3" dur="3.5s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="95" cy="410" r="1.8" fill="#ffffff" opacity="0.35"/>
+  <circle cx="256" cy="70" r="1.5" fill="#ffffff" opacity="0.25"/>
+  
+  <!-- Moon glow -->
+  <circle cx="256" cy="256" r="95" fill="rgba(252,217,160,0.15)" filter="url(#moonGlow)"/>
+  
+  <!-- Crescent moon -->
+  <g filter="url(#moonGlow)">
+    <circle cx="256" cy="256" r="75" fill="url(#moonGrad)"/>
+    <circle cx="290" cy="256" r="58" fill="url(#bgGrad)"/>
+  </g>
+  
+  <!-- Sound wave arcs -->
+  <g stroke="url(#waveGrad)" stroke-width="8" fill="none" stroke-linecap="round" filter="url(#glow)">
+    <!-- Inner arc -->
+    <path d="M 320 200 Q 380 256 320 312" stroke-opacity="0.9"/>
+    <!-- Middle arc -->
+    <path d="M 345 185 Q 415 256 345 327" stroke-opacity="0.75"/>
+    <!-- Outer arc -->
+    <path d="M 370 170 Q 450 256 370 342" stroke-opacity="0.6"/>
+  </g>
+  
+  <!-- Small decorative dots on wave ends -->
+  <circle cx="320" cy="200" r="4" fill="#5eead4" opacity="0.8"/>
+  <circle cx="320" cy="312" r="4" fill="#5eead4" opacity="0.8"/>
+  <circle cx="345" cy="185" r="3" fill="#2dd4bf" opacity="0.7"/>
+  <circle cx="345" cy="327" r="3" fill="#2dd4bf" opacity="0.7"/>
+</svg>

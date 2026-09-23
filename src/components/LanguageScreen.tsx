@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
-import { ChevronLeft, MoonStar, Sparkles } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
+import Logo from "./Logo";
 import { dictionaries, type Lang } from "../i18n";
 import { tapHaptic } from "../lib/audioEngine";
 
@@ -21,13 +22,8 @@ export default function LanguageScreen({ onPick }: { onPick: (l: Lang) => void }
         className="relative mb-8"
       >
         <div className="animate-floaty relative">
-          <div className="absolute inset-0 -m-6 rounded-full bg-violet-500/25 blur-3xl" />
-          <img
-            src="/images/moon.png"
-            alt=""
-            className="relative h-40 w-40 rounded-full object-cover [mask-image:radial-gradient(circle,black_55%,transparent_72%)]"
-          />
-          <Sparkles className="absolute -top-1 -end-2 size-6 text-teal-200/90 animate-breathe" strokeWidth={1.5} />
+          <div className="absolute inset-0 -m-10 rounded-full bg-violet-500/20 blur-3xl" />
+          <Logo size="xl" theme="dark" />
         </div>
       </motion.div>
 
@@ -38,7 +34,6 @@ export default function LanguageScreen({ onPick }: { onPick: (l: Lang) => void }
         className="text-center"
       >
         <div className="mb-2 flex items-center justify-center gap-2 text-teal-200/80">
-          <MoonStar className="size-4" strokeWidth={1.6} />
           <span className="text-xs font-semibold tracking-widest text-teal-100/80">{t.brand}</span>
         </div>
         <h1 className="text-2xl font-extrabold leading-snug text-white">

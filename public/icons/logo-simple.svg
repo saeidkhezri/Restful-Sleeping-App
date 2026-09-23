@@ -1,0 +1,35 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="moonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fde8c8;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#fcd9a0;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d9b380;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="waveGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#5eead4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2dd4bf;stop-opacity:1" />
+    </linearGradient>
+    
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Crescent moon -->
+  <g filter="url(#glow)">
+    <circle cx="256" cy="256" r="85" fill="url(#moonGrad)"/>
+    <circle cx="295" cy="256" r="68" fill="#1a1a3a"/>
+  </g>
+  
+  <!-- Sound wave arcs -->
+  <g stroke="url(#waveGrad)" stroke-width="10" fill="none" stroke-linecap="round" filter="url(#glow)">
+    <path d="M 330 190 Q 400 256 330 322" stroke-opacity="0.9"/>
+    <path d="M 360 170 Q 440 256 360 342" stroke-opacity="0.7"/>
+    <path d="M 390 150 Q 480 256 390 362" stroke-opacity="0.5"/>
+  </g>
+</svg>
