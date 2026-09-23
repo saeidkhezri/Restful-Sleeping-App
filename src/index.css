@@ -128,7 +128,7 @@ input[type="range"]::-moz-range-thumb {
 
 :root {
   /* dark theme (default) */
-  --bg: #06070d;
+  --bg: #030409;
   --surface-1: rgba(255, 255, 255, 0.04);
   --surface-2: rgba(255, 255, 255, 0.06);
   --surface-3: rgba(255, 255, 255, 0.09);

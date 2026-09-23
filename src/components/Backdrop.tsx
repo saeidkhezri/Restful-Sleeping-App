@@ -43,19 +43,19 @@ export default function Backdrop({
     const background =
       theme === "light"
         ? "linear-gradient(180deg, #c8ddf2 0%, #d8e7fa 24%, #e7f0fb 44%, #f5f8fd 68%, #fbfdff 100%)"
-        : "linear-gradient(180deg, #4a7fb5 0%, #6b9dd9 28%, #9bc0e6 52%, #cfe0f2 76%, #f5f0e8 100%)";
+        : "linear-gradient(180deg, #101024 0%, #16162e 40%, #1d1d38 75%, #232341 100%)";
 
     const sunGlow =
       theme === "light"
         ? "radial-gradient(circle, rgba(255,242,200,.22), transparent 72%)"
-        : "radial-gradient(circle, rgba(255,242,200,.30), transparent 72%)";
+        : "radial-gradient(circle, rgba(190,170,130,.14), transparent 72%)";
 
     const vignette =
       theme === "light"
         ? "radial-gradient(100% 80% at 50% 100%, transparent 40%, rgba(255,255,255,.08) 100%)"
-        : "radial-gradient(100% 80% at 50% 100%, transparent 40%, rgba(10,25,50,.12) 100%)";
+        : "radial-gradient(100% 80% at 50% 100%, transparent 40%, rgba(5,5,14,.5) 100%)";
 
-    const cloudOpacity = theme === "light" ? 0.32 : 0.28;
+    const cloudOpacity = theme === "light" ? 0.32 : 0.13;
 
     return (
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
@@ -96,15 +96,15 @@ export default function Backdrop({
         className="absolute inset-0"
         style={{
           background:
-            "linear-gradient(180deg, #0a0a1a 0%, #0f0f2a 35%, #151535 62%, #1a1a40 85%, #1f1f4a 100%)",
+            "linear-gradient(180deg, #010106 0%, #030313 32%, #05051d 62%, #070727 84%, #08082c 100%)",
           opacity: intensity,
         }}
       />
       <div
         className="absolute -top-12 end-[18%] h-48 w-48 rounded-full blur-3xl"
         style={{
-          background: "radial-gradient(circle, rgba(180,190,220,.18), transparent 75%)",
-          opacity: intensity * 0.7,
+          background: "radial-gradient(circle, rgba(150,165,200,.12), transparent 75%)",
+          opacity: intensity * 0.45,
         }}
       />
 
@@ -129,7 +129,7 @@ export default function Backdrop({
       <div
         className="absolute top-[-10%] start-[-10%] h-[50%] w-[70%] rounded-full blur-3xl"
         style={{
-          background: "radial-gradient(ellipse, rgba(94,234,212,.06), transparent 75%)",
+          background: "radial-gradient(ellipse, rgba(94,234,212,.035), transparent 75%)",
           opacity: intensity,
         }}
       />
@@ -137,7 +137,7 @@ export default function Backdrop({
       <div
         className="absolute inset-0"
         style={{
-          background: "radial-gradient(100% 80% at 50% 100%, transparent 35%, rgba(5,5,15,.65) 100%)",
+          background: "radial-gradient(100% 80% at 50% 100%, transparent 32%, rgba(1,1,6,.82) 100%)",
           opacity: intensity,
         }}
       />
